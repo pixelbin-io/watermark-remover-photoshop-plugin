@@ -1,0 +1,75 @@
+{
+    "id": "watermark-remover",
+    "name": "Watermark Remover",
+    "version": "1.0.0",
+    "main": "index.html",
+    "manifestVersion": 5,
+    "host": [
+        {
+            "app": "PS",
+            "minVersion": "23.3.0"
+        }
+    ],
+    "requiredPermissions": {
+        "allowCodeGenerationFromStrings": true,
+        "launchProcess": {
+            "schemes": ["http", "https"],
+            "extensions": [".svg", ".png"]
+        },
+        "network": {
+            "domains": [
+                "https://console.pixelbin.io",
+                "https://api.pixelbin.io",
+                "https://cdn.pixelbin.io",
+                "https://www.pixelbin.io",
+                "https://www.watermarkremover.io"
+            ]
+        }
+    },
+    "entrypoints": [
+        {
+            "type": "command",
+            "id": "goToDashboard",
+            "label": { "default": "Go to dashboard" }
+        },
+        {
+            "type": "command",
+            "id": "buyCredits",
+            "label": { "default": "Buy credits" }
+        },
+        {
+            "type": "command",
+            "id": "howItWorks",
+            "label": { "default": "How it works" }
+        },
+        {
+            "type": "panel",
+            "id": "app",
+            "label": { "default": "Watermark Remover" },
+            "minimumSize": { "width": 260, "height": 540 },
+            "maximumSize": { "width": 260, "height": 540 },
+            "preferredDockedSize": { "width": 260, "height": 540 },
+            "preferredFloatingSize": { "width": 260, "height": 540 },
+            "icons": [
+                {
+                    "width": 23,
+                    "height": 23,
+                    "path": "icons/watermarkremover.png",
+                    "scale": [1, 2],
+                    "theme": ["all"],
+                    "species": ["generic"]
+                }
+            ]
+        }
+    ],
+    "icons": [
+        {
+            "width": 23,
+            "height": 23,
+            "path": "icons/watermarkremover.png",
+            "scale": [1, 2],
+            "theme": ["all"],
+            "species": ["generic"]
+        }
+    ]
+}
