@@ -173,6 +173,14 @@ export const Home = ({
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
 
+    useEffect(() => {
+        // HACK!!!
+        // to hide overdrawn text fields
+        // ref: https://forums.creativeclouddeveloper.com/t/sp-textfield-always-on-top-of-absolute-sp-menu-and-z-index-wouldnt-help/3957/5
+        document.getElementById("fields-end")?.scrollIntoView();
+        document.getElementById("fields-start")?.scrollIntoView();
+    }, [loading]);
+
     const handleApply = async (e) => {
         e.preventDefault();
 
@@ -251,6 +259,8 @@ export const Home = ({
 
             <main style={styles.form}>
                 <div style={styles.fields}>
+                    <div id="fields-start" />
+
                     {params.map((param) => (
                         <InputField
                             key={param.identifier}
@@ -260,6 +270,8 @@ export const Home = ({
                             handleResetClick={handleResetClick}
                         />
                     ))}
+
+                    <div id="fields-end" />
                 </div>
 
                 <div style={styles.actions}>
