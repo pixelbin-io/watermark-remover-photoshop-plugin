@@ -1,9 +1,9 @@
-# Watermark Remover for Photoshop
+# Watermarkremover.io for Photoshop
 
 This plugin introduces support to remove watermarks from images in the Photoshop backend by [PixelBin's](https://www.pixelbin.io) Watermark Remover transformation.
 
 > [!NOTE]
-> To learn more about how to use this plugin, [click here](https://www.pixelbin.io/docs/tools/photoshop/watermark-remover/).
+> To learn more about how to use this plugin, [click here](https://www.pixelbin.io/docs/integrations/photoshop/watermarkremover.io/).
 
 ## Install dependencies
 

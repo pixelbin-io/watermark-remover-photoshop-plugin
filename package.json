@@ -1,5 +1,5 @@
 {
-    "name": "photoshop.watermark-remover.plugin",
+    "name": "watermarkremover.io",
     "version": "1.0.0",
     "scripts": {
         "watch": "nodemon -w src -e js,jsx,json,css,html -w webpack.config.js -x npm run build",

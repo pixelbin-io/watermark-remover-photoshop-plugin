@@ -12,7 +12,7 @@ export const constants = {
 
         pluginHomePage: "https://www.watermarkremover.io",
         pluginDoc:
-            "https://www.pixelbin.io/docs/tools/photoshop/watermarkremover/",
+            "https://www.pixelbin.io/docs/integrations/photoshop/watermarkremover.io/",
 
         apiDomain: "https://api.pixelbin.io",
     },

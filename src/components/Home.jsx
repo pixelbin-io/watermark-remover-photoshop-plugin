@@ -21,6 +21,7 @@ const styles = {
     },
     header: {
         display: "flex",
+        flexDirection: "column",
         justifyContent: "space-between",
         alignItems: "center",
         marginBottom: "2rem",
@@ -67,6 +68,8 @@ const styles = {
     helpLink: {
         display: "flex",
         alignItems: "center",
+        alignSelf: "end",
+        marginTop: "1rem",
         color: "var(--uxp-host-text-color)",
         fontSize: "var(--uxp-host-font-size)",
     },
@@ -85,14 +88,14 @@ const params = [
         name: "Remove Text",
         type: "boolean",
         default: false,
-        identifier: "rem_text",
+        identifier: "removeText",
         title: "Remove text",
     },
     {
         name: "Remove Logo",
         type: "boolean",
         default: false,
-        identifier: "rem_logo",
+        identifier: "removeLogo",
         title: "Remove logo",
     },
     {
@@ -189,7 +192,7 @@ export const Home = ({
         const [, error] = await handle(
             applyTransformation({
                 appOrgDetails,
-                filters: formValues,
+                parameters: formValues,
                 token,
             })
         );
@@ -247,7 +250,7 @@ export const Home = ({
                         style={styles.productLogo}
                         src="./icons/watermarkremover.png"
                     />
-                    Watermark Remover
+                    Watermarkremover.io
                 </a>
                 <a href={constants.urls.pluginDoc} style={styles.helpLink}>
                     <span style={styles.helpIcon}>

@@ -162,7 +162,7 @@ export const applyTransformation = async ({
             const suspensionID =
                 await executionContext.hostControl.suspendHistory({
                     documentID: originalImageLayer._docId,
-                    name: "Watermark Remover",
+                    name: "Watermarkremover.io",
                 });
 
             try {
@@ -197,7 +197,7 @@ export const applyTransformation = async ({
 
                 const { presignedUrl } =
                     await pixelbin.assets.createSignedUrlV2({
-                        path: "__photoshop",
+                        path: "__photoshop/__watermarkremover.io",
                         format: "jpeg",
                         filenameOverride: true,
                     });
