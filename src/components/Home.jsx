@@ -250,7 +250,7 @@ export const Home = ({
                         style={styles.productLogo}
                         src="./icons/watermarkremover.png"
                     />
-                    Watermarkremover.io
+                    WatermarkRemover.io
                 </a>
                 <a href={constants.urls.pluginDoc} style={styles.helpLink}>
                     <span style={styles.helpIcon}>

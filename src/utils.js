@@ -162,7 +162,7 @@ export const applyTransformation = async ({
             const suspensionID =
                 await executionContext.hostControl.suspendHistory({
                     documentID: originalImageLayer._docId,
-                    name: "Watermarkremover.io",
+                    name: "WatermarkRemover.io",
                 });
 
             try {

@@ -1,6 +1,6 @@
 {
     "id": "b111e821",
-    "name": "Watermarkremover.io",
+    "name": "WatermarkRemover.io",
     "version": "1.0.0",
     "main": "index.html",
     "manifestVersion": 5,
@@ -45,7 +45,7 @@
         {
             "type": "panel",
             "id": "app",
-            "label": { "default": "Watermarkremover.io" },
+            "label": { "default": "WatermarkRemover.io" },
             "minimumSize": { "width": 260, "height": 540 },
             "maximumSize": { "width": 260, "height": 540 },
             "preferredDockedSize": { "width": 260, "height": 540 },
