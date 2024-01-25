@@ -12,7 +12,10 @@ const styles = {
     paramGap: { marginBottom: "6px" },
     resetButton: { padding: 0 },
     fullWidth: { width: "100%" },
-    label: { color: "var(--uxp-host-text-color)" },
+    label: {
+        color: "var(--uxp-host-text-color-secondary)",
+        fontSize: "var(--uxp-host-font-size)",
+    },
 };
 
 function Picker({ value, param, handleChange, handleResetClick }) {

@@ -1,7 +1,7 @@
 {
     "id": "b111e821",
-    "name": "Watermarkremover.io",
-    "version": "1.0.0",
+    "name": "WatermarkRemover.io",
+    "version": "1.0.1",
     "main": "index.html",
     "manifestVersion": 5,
     "host": [
@@ -45,11 +45,11 @@
         {
             "type": "panel",
             "id": "app",
-            "label": { "default": "Watermarkremover.io" },
-            "minimumSize": { "width": 260, "height": 540 },
-            "maximumSize": { "width": 260, "height": 540 },
-            "preferredDockedSize": { "width": 260, "height": 540 },
-            "preferredFloatingSize": { "width": 260, "height": 540 },
+            "label": { "default": "WatermarkRemover.io" },
+            "minimumSize": { "width": 260, "height": 560 },
+            "maximumSize": { "width": 260, "height": 560 },
+            "preferredDockedSize": { "width": 260, "height": 560 },
+            "preferredFloatingSize": { "width": 260, "height": 560 },
             "icons": [
                 {
                     "width": 23,

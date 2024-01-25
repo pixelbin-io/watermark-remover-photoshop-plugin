@@ -8,6 +8,7 @@ import Loader from "./Loader";
 import { CreditsInformation } from "./CreditsInformation";
 import { constants } from "../constants";
 import InputField from "./InputField";
+import AccordionItem from "./AccordionItem";
 
 const styles = {
     loadingBackdrop: {
@@ -53,12 +54,13 @@ const styles = {
         margin: "-16px -12px",
         padding: "16px",
         borderRadius: "4px",
-        border: "0.2px solid var(--uxp-host-text-color-secondary)",
+        border: "0.5px solid var(--uxp-host-text-color-secondary)",
     },
     fields: {
-        overflow: "auto",
+        flex: 1,
         marginBottom: "1.5rem",
-        marginRight: "-16px",
+        display: "flex",
+        flexDirection: "column",
     },
     helpIcon: {
         fill: "currentcolor",
@@ -98,6 +100,9 @@ const params = [
         identifier: "removeLogo",
         title: "Remove logo",
     },
+];
+
+const advancedParams = [
     {
         name: "Box 1",
         tooltip:
@@ -152,7 +157,7 @@ const params = [
 
 const defaultParamValues = {};
 
-for (const param of params) {
+for (const param of [...params, ...advancedParams]) {
     defaultParamValues[param.identifier] = param.default;
 }
 
@@ -175,14 +180,6 @@ export const Home = ({
         updateUsage();
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
-
-    useEffect(() => {
-        // HACK!!!
-        // to hide overdrawn text fields
-        // ref: https://forums.creativeclouddeveloper.com/t/sp-textfield-always-on-top-of-absolute-sp-menu-and-z-index-wouldnt-help/3957/5
-        document.getElementById("fields-end")?.scrollIntoView();
-        document.getElementById("fields-start")?.scrollIntoView();
-    }, [loading]);
 
     const handleApply = async (e) => {
         e.preventDefault();
@@ -250,7 +247,7 @@ export const Home = ({
                         style={styles.productLogo}
                         src="./icons/watermarkremover.png"
                     />
-                    Watermarkremover.io
+                    WatermarkRemover.io
                 </a>
                 <a href={constants.urls.pluginDoc} style={styles.helpLink}>
                     <span style={styles.helpIcon}>
@@ -262,8 +259,6 @@ export const Home = ({
 
             <main style={styles.form}>
                 <div style={styles.fields}>
-                    <div id="fields-start" />
-
                     {params.map((param) => (
                         <InputField
                             key={param.identifier}
@@ -274,7 +269,17 @@ export const Home = ({
                         />
                     ))}
 
-                    <div id="fields-end" />
+                    <AccordionItem>
+                        {advancedParams.map((param) => (
+                            <InputField
+                                key={param.identifier}
+                                value={formValues[param.identifier]}
+                                param={param}
+                                handleChange={handleChange}
+                                handleResetClick={handleResetClick}
+                            />
+                        ))}
+                    </AccordionItem>
                 </div>
 
                 <div style={styles.actions}>
