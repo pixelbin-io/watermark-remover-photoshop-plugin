@@ -41,7 +41,6 @@ const appPanelController = new PanelController(
 entrypoints.setup({
     plugin: {
         create(plugin) {
-            console.clear();
             console.log("created", { plugin });
         },
         destroy() {
