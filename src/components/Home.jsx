@@ -1,7 +1,19 @@
 import React, { useEffect, useState } from "react";
+import photoshop from "photoshop";
 
 import { HelpIcon, RefreshIcon } from "./Icons";
-import { getUsage, handle, applyTransformation } from "../utils";
+import {
+    getUsage,
+    handle,
+    applyTransformation,
+    drawBoxLayer,
+    getActiveLayer,
+    createBoxLayersGroup,
+    getActiveDocument,
+    boxPixelsToPercent,
+    boundsToBoxInPixels,
+    convertBoxesForSelectedLayer,
+} from "../utils";
 import { CommandController } from "../controllers/CommandController";
 import { ErrorAlertDialog } from "./ErrorAlertDialog";
 import Loader from "./Loader";
@@ -155,6 +167,8 @@ const advancedParams = [
     },
 ];
 
+const boxIdentifiers = ["box1", "box2", "box3", "box4", "box5"];
+
 const defaultParamValues = {};
 
 for (const param of [...params, ...advancedParams]) {
@@ -173,6 +187,8 @@ export const Home = ({
         credits: { used: 0 },
         total: { credits: 0 },
     });
+    const [boxLayersIds, setBoxLayersIds] = useState({});
+    const [boxLayersGroupId, setBoxLayersGroupId] = useState(null);
 
     const updateUsage = () => getUsage(token).then(setUsage);
 
@@ -181,21 +197,74 @@ export const Home = ({
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
 
+    useEffect(() => {
+        const listener = () => {
+            const activeLayer = getActiveLayer();
+
+            if (!activeLayer) return;
+
+            const isBoxLayer = Object.entries(boxLayersIds).find(
+                ([, layerID]) => layerID === activeLayer.id
+            );
+
+            if (isBoxLayer) {
+                const newBox = boxPixelsToPercent(
+                    boundsToBoxInPixels(activeLayer.boundsNoEffects),
+                    boundsToBoxInPixels(getActiveDocument(), true)
+                );
+
+                setFormValues((formValues) => ({
+                    ...formValues,
+                    [isBoxLayer[0]]: stringifyBox(newBox),
+                }));
+            }
+        };
+
+        photoshop.action.addNotificationListener(
+            [{ event: "transform" }, { event: "move" }],
+            listener
+        );
+
+        return () => {
+            photoshop.action.removeNotificationListener(
+                [{ event: "transform" }, { event: "move" }],
+                listener
+            );
+        };
+    }, [boxLayersIds]);
+
     const handleApply = async (e) => {
         e.preventDefault();
 
         setLoading(true);
 
+        const convertedBoxes = {};
+
+        for (const [identifier, boxLayerId] of Object.entries(boxLayersIds)) {
+            convertedBoxes[identifier] = stringifyBox(
+                await convertBoxesForSelectedLayer(boxLayerId)
+            );
+        }
+
         const [, error] = await handle(
             applyTransformation({
                 appOrgDetails,
-                parameters: formValues,
+                parameters: { ...formValues, ...convertedBoxes },
                 token,
             })
         );
 
         updateUsage();
-        setFilters(formValues);
+
+        // only save simple params values
+        const savedFilters = {};
+
+        for (const param of params) {
+            savedFilters[param.identifier] = formValues[param.identifier];
+        }
+
+        setFilters(savedFilters);
+
         setLoading(false);
 
         if (error) {
@@ -235,6 +304,34 @@ export const Home = ({
             </div>
         );
     }
+
+    const stringifyBox = (box) => {
+        // left_top_width_height
+        return `${box.left}_${box.top}_${box.width}_${box.height}`;
+    };
+
+    const handleDrawClick = async (identifier) => {
+        let groupId = boxLayersGroupId;
+
+        if (!groupId) {
+            groupId = await createBoxLayersGroup();
+            setBoxLayersGroupId(groupId);
+        }
+
+        if (!boxLayersIds[identifier]) {
+            const box = await drawBoxLayer(identifier, groupId);
+
+            setBoxLayersIds((boxesToLayers) => ({
+                ...boxesToLayers,
+                [identifier]: box.layerID,
+            }));
+
+            setFormValues((formValues) => ({
+                ...formValues,
+                [identifier]: stringifyBox(box.box),
+            }));
+        }
+    };
 
     return (
         <div style={styles.wrapper}>
@@ -277,6 +374,10 @@ export const Home = ({
                                 param={param}
                                 handleChange={handleChange}
                                 handleResetClick={handleResetClick}
+                                handleDrawClick={handleDrawClick}
+                                drawButtonDisabled={
+                                    boxLayersIds[param.identifier]
+                                }
                             />
                         ))}
                     </AccordionItem>

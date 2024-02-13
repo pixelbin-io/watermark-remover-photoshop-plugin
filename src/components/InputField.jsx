@@ -11,6 +11,7 @@ const styles = {
     },
     paramGap: { marginBottom: "6px" },
     resetButton: { padding: 0 },
+    drawButton: { marginLeft: "0.2rem" },
     fullWidth: { width: "100%" },
     label: {
         color: "var(--uxp-host-text-color-secondary)",
@@ -82,7 +83,7 @@ function Checkbox({ value, param, handleChange, handleResetClick }) {
     );
 }
 
-function Text({ value, param, handleChange, handleResetClick }) {
+function Text({ value, param, handleChange, handleResetClick, handleDrawClick, drawButtonDisabled }) {
     return (
         <WC onChange={(e) => handleChange(e.target.value)}>
             <div style={styles.paramSection}>
@@ -98,13 +99,23 @@ function Text({ value, param, handleChange, handleResetClick }) {
                     <span>Reset</span>
                 </sp-action-button>
             </div>
-            <sp-textfield
-                id={param.identifier}
-                size="m"
-                label={param.title}
-                style={styles.fullWidth}
-                value={value}
-            ></sp-textfield>
+            <div style={{ display: "flex" }}>
+                <sp-textfield
+                    id={param.identifier}
+                    size="m"
+                    label={param.title}
+                    style={styles.fullWidth}
+                    value={value}
+                ></sp-textfield>
+                <sp-action-button
+                    variant="secondary"
+                    onClick={handleDrawClick}
+                    style={styles.drawButton}
+                    disabled={drawButtonDisabled ? true : undefined}
+                >
+                    <span>Draw</span>
+                </sp-action-button>
+            </div>
         </WC>
     );
 }
@@ -114,6 +125,8 @@ export default function InputField({
     param,
     handleChange,
     handleResetClick,
+    handleDrawClick,
+    drawButtonDisabled,
 }) {
     let Field;
 
@@ -135,6 +148,8 @@ export default function InputField({
             param={param}
             handleChange={(e) => handleChange(param.identifier, e)}
             handleResetClick={() => handleResetClick(param.identifier)}
+            handleDrawClick={() => handleDrawClick(param.identifier)}
+            drawButtonDisabled={drawButtonDisabled}
         />
     );
 }
