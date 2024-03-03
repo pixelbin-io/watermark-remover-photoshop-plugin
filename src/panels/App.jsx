@@ -41,6 +41,7 @@ export const App = ({ panel }) => {
                 token={token}
                 filters={filters}
                 setFilters={_setFilters}
+                biref={panel.biref}
             />
         );
     }

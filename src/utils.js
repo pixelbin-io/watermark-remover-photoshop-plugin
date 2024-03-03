@@ -99,12 +99,16 @@ const wait = (ms) => new Promise((res) => setTimeout(res, ms));
 
 const MAX_RETRIES = 3;
 
-export function getActiveDocument() {
+export function getActiveDoc() {
     return photoshop.app.activeDocument;
 }
 
 export function getActiveLayer() {
-    return getActiveDocument().activeLayers.at(0);
+    return getActiveDoc().activeLayers.at(0);
+}
+
+export function getLayer(lyrId, docId) {
+    return new photoshop.app.Layer(Number(lyrId), Number(docId));
 }
 
 export async function fetchLazyTransformation(url, attempt = 0) {
@@ -161,11 +165,6 @@ export async function convertBoxesForSelectedLayer(boxLayerId) {
 
                 const imageLayer = getActiveLayer();
 
-                console.log(
-                    boxLayer.boundsNoEffects,
-                    imageLayer.boundsNoEffects
-                );
-
                 // check if box is within bounds
                 const within =
                     boxLayer.boundsNoEffects.top._value >
@@ -177,7 +176,9 @@ export async function convertBoxesForSelectedLayer(boxLayerId) {
                     boxLayer.boundsNoEffects.bottom._value <
                         imageLayer.boundsNoEffects.bottom;
 
-                console.log({ within });
+                if (!within) {
+                    throw Error("Box(s) are outside the selected layer.");
+                }
 
                 const withinBox = {
                     top:
@@ -193,13 +194,6 @@ export async function convertBoxesForSelectedLayer(boxLayerId) {
                         boxLayer.boundsNoEffects.bottom._value -
                         imageLayer.boundsNoEffects.top,
                 };
-
-                console.log({ withinBox });
-
-                console.log(
-                    boundsToBoxInPixels(withinBox),
-                    boundsToBoxInPixels(imageLayer.boundsNoEffects)
-                );
 
                 returnValue = boxPixelsToPercent(
                     boundsToBoxInPixels(withinBox),
@@ -239,8 +233,6 @@ export function boundsToBoxInPixels(bounds, isDocument) {
 }
 
 export function boxPixelsToPercent(box, bounds) {
-    console.log(box, bounds);
-
     return {
         top: Math.round((box.top / bounds.height) * 100),
         left: Math.round((box.left / bounds.width) * 100),
@@ -305,208 +297,254 @@ export async function createBoxLayersGroup() {
     return returnValue;
 }
 
-export async function drawBoxLayer(identifier, boxLayersGroupId) {
-    const activeDocument = getActiveDocument();
+export async function selectLayerById(layerId) {
+    let modalError = null;
 
-    try {
-        const shapeBounds = {
-            top: 0,
-            left: 0,
-            bottom: activeDocument.height,
-            right: activeDocument.width,
-        };
-
-        let modalError = null;
-        let returnValue = { layerID: null, box: {} };
-
-        await photoshop.core.executeAsModal(
-            async (executionContext) => {
-                const suspensionID =
-                    await executionContext.hostControl.suspendHistory({
-                        documentID: activeDocument.id,
-                        name: "WatermarkRemover.io - Draw " + identifier,
-                    });
-
-                try {
-                    await photoshop.action.batchPlay(
-                        [
-                            {
-                                _obj: "select",
-                                _target: [
-                                    {
-                                        _ref: "layer",
-                                        _id: boxLayersGroupId,
-                                    },
-                                ],
-                            },
-                        ],
-                        {}
-                    );
-
-                    await photoshop.action.batchPlay(
-                        [
-                            {
-                                _obj: "select",
-                                _target: {
-                                    _ref: "rectangleTool",
+    await photoshop.core.executeAsModal(
+        async () => {
+            try {
+                await photoshop.action.batchPlay(
+                    [
+                        {
+                            _obj: "select",
+                            _target: [
+                                {
+                                    _ref: "layer",
+                                    _id: layerId,
                                 },
-                                dontRecord: true,
-                            },
-                        ],
-                        {}
-                    );
+                            ],
+                        },
+                    ],
+                    {}
+                );
+            } catch (error) {
+                modalError = error;
+            }
+        },
+        { interactive: true }
+    );
 
-                    await photoshop.action.batchPlay(
-                        [
-                            {
-                                _obj: "make",
-                                _target: [{ _ref: "contentLayer" }],
-                                using: {
-                                    _obj: "contentLayer",
-                                    type: {
+    if (modalError) {
+        throw modalError;
+    }
+}
+
+export async function deleteLayerById(lyrId, docId) {
+    let modalError = null;
+
+    await photoshop.core.executeAsModal(
+        () => {
+            try {
+                getLayer(lyrId, docId)?.delete();
+            } catch (error) {
+                modalError = error;
+            }
+        },
+        { interactive: true }
+    );
+
+    if (modalError) {
+        throw modalError;
+    }
+}
+
+export async function drawBoxLayer(identifier, boxLayersGroupId) {
+    const activeDocument = getActiveDoc();
+
+    const shapeBounds = {
+        top: 0,
+        left: 0,
+        bottom: activeDocument.height,
+        right: activeDocument.width,
+    };
+
+    let modalError = null;
+    let returnValue = { layerID: null, box: {} };
+
+    await photoshop.core.executeAsModal(
+        async (executionContext) => {
+            const suspensionID =
+                await executionContext.hostControl.suspendHistory({
+                    documentID: activeDocument.id,
+                    name: "WatermarkRemover.io - Draw " + identifier,
+                });
+
+            try {
+                await photoshop.action.batchPlay(
+                    [
+                        {
+                            _obj: "select",
+                            _target: [
+                                {
+                                    _ref: "layer",
+                                    _id: boxLayersGroupId,
+                                },
+                            ],
+                        },
+                    ],
+                    {}
+                );
+
+                await photoshop.action.batchPlay(
+                    [
+                        {
+                            _obj: "select",
+                            _target: {
+                                _ref: "rectangleTool",
+                            },
+                            dontRecord: true,
+                        },
+                    ],
+                    {}
+                );
+
+                await photoshop.action.batchPlay(
+                    [
+                        {
+                            _obj: "make",
+                            _target: [{ _ref: "contentLayer" }],
+                            using: {
+                                _obj: "contentLayer",
+                                type: {
+                                    _obj: "solidColorLayer",
+                                    color: {
+                                        _obj: "RGBColor",
+                                        red: 255,
+                                        grain: 255,
+                                        blue: 255,
+                                    },
+                                },
+                                shape: {
+                                    _obj: "rectangle",
+                                    unitValueQuadVersion: 1,
+                                    top: {
+                                        _unit: "pixelsUnit",
+                                        _value: shapeBounds.top,
+                                    },
+                                    left: {
+                                        _unit: "pixelsUnit",
+                                        _value: shapeBounds.left,
+                                    },
+                                    bottom: {
+                                        _unit: "pixelsUnit",
+                                        _value: shapeBounds.bottom,
+                                    },
+                                    right: {
+                                        _unit: "pixelsUnit",
+                                        _value: shapeBounds.right,
+                                    },
+                                },
+                                strokeStyle: {
+                                    _obj: "strokeStyle",
+                                    strokeStyleVersion: 2,
+                                    strokeEnabled: true,
+                                    fillEnabled: true,
+                                    strokeStyleLineWidth: {
+                                        _unit: "pixelsUnit",
+                                        _value: 4,
+                                    },
+                                    strokeStyleLineDashOffset: {
+                                        _unit: "pointsUnit",
+                                        _value: 0,
+                                    },
+                                    strokeStyleMiterLimit: 100,
+                                    strokeStyleLineCapType: {
+                                        _enum: "strokeStyleLineCapType",
+                                        _value: "strokeStyleButtCap",
+                                    },
+                                    strokeStyleLineJoinType: {
+                                        _enum: "strokeStyleLineJoinType",
+                                        _value: "strokeStyleMiterJoin",
+                                    },
+                                    strokeStyleLineAlignment: {
+                                        _enum: "strokeStyleLineAlignment",
+                                        _value: "strokeStyleAlignInside",
+                                    },
+                                    strokeStyleScaleLock: false,
+                                    strokeStyleStrokeAdjust: false,
+                                    strokeStyleLineDashSet: [
+                                        {
+                                            _unit: "noneUnit",
+                                            _value: 4,
+                                        },
+                                        {
+                                            _unit: "noneUnit",
+                                            _value: 2,
+                                        },
+                                    ],
+                                    strokeStyleBlendMode: {
+                                        _enum: "blendMode",
+                                        _value: "normal",
+                                    },
+                                    strokeStyleOpacity: {
+                                        _unit: "percentUnit",
+                                        _value: 100,
+                                    },
+                                    strokeStyleContent: {
                                         _obj: "solidColorLayer",
                                         color: {
                                             _obj: "RGBColor",
-                                            red: 255,
-                                            grain: 255,
-                                            blue: 255,
+                                            red: 0,
+                                            grain: 0,
+                                            blue: 0,
                                         },
                                     },
-                                    shape: {
-                                        _obj: "rectangle",
-                                        unitValueQuadVersion: 1,
-                                        top: {
-                                            _unit: "pixelsUnit",
-                                            _value: shapeBounds.top,
-                                        },
-                                        left: {
-                                            _unit: "pixelsUnit",
-                                            _value: shapeBounds.left,
-                                        },
-                                        bottom: {
-                                            _unit: "pixelsUnit",
-                                            _value: shapeBounds.bottom,
-                                        },
-                                        right: {
-                                            _unit: "pixelsUnit",
-                                            _value: shapeBounds.right,
-                                        },
-                                    },
-                                    strokeStyle: {
-                                        _obj: "strokeStyle",
-                                        strokeStyleVersion: 2,
-                                        strokeEnabled: true,
-                                        fillEnabled: true,
-                                        strokeStyleLineWidth: {
-                                            _unit: "pixelsUnit",
-                                            _value: 4,
-                                        },
-                                        strokeStyleLineDashOffset: {
-                                            _unit: "pointsUnit",
-                                            _value: 0,
-                                        },
-                                        strokeStyleMiterLimit: 100,
-                                        strokeStyleLineCapType: {
-                                            _enum: "strokeStyleLineCapType",
-                                            _value: "strokeStyleButtCap",
-                                        },
-                                        strokeStyleLineJoinType: {
-                                            _enum: "strokeStyleLineJoinType",
-                                            _value: "strokeStyleMiterJoin",
-                                        },
-                                        strokeStyleLineAlignment: {
-                                            _enum: "strokeStyleLineAlignment",
-                                            _value: "strokeStyleAlignInside",
-                                        },
-                                        strokeStyleScaleLock: false,
-                                        strokeStyleStrokeAdjust: false,
-                                        strokeStyleLineDashSet: [
-                                            {
-                                                _unit: "noneUnit",
-                                                _value: 4,
-                                            },
-                                            {
-                                                _unit: "noneUnit",
-                                                _value: 2,
-                                            },
-                                        ],
-                                        strokeStyleBlendMode: {
-                                            _enum: "blendMode",
-                                            _value: "normal",
-                                        },
-                                        strokeStyleOpacity: {
-                                            _unit: "percentUnit",
-                                            _value: 100,
-                                        },
-                                        strokeStyleContent: {
-                                            _obj: "solidColorLayer",
-                                            color: {
-                                                _obj: "RGBColor",
-                                                red: 0,
-                                                grain: 0,
-                                                blue: 0,
-                                            },
-                                        },
-                                        strokeStyleResolution: 72,
-                                    },
+                                    strokeStyleResolution: 72,
                                 },
                             },
-                        ],
-                        {}
-                    );
+                        },
+                    ],
+                    {}
+                );
 
-                    await photoshop.action.batchPlay(
-                        [
-                            {
-                                _obj: "set",
-                                _target: [
-                                    {
-                                        _ref: "layer",
-                                        _enum: "ordinal",
-                                        _value: "targetEnum",
-                                    },
-                                ],
-                                to: {
-                                    _obj: "layer",
-                                    opacity: {
-                                        _unit: "percentUnit",
-                                        _value: 30,
-                                    },
+                await photoshop.action.batchPlay(
+                    [
+                        {
+                            _obj: "set",
+                            _target: [
+                                {
+                                    _ref: "layer",
+                                    _enum: "ordinal",
+                                    _value: "targetEnum",
+                                },
+                            ],
+                            to: {
+                                _obj: "layer",
+                                opacity: {
+                                    _unit: "percentUnit",
+                                    _value: 30,
                                 },
                             },
-                        ],
-                        {}
-                    );
+                        },
+                    ],
+                    {}
+                );
 
-                    const boxLayer = getActiveLayer();
+                const boxLayer = getActiveLayer();
 
-                    boxLayer.name = identifier;
+                boxLayer.name = identifier;
 
-                    returnValue = {
-                        layerID: boxLayer.id,
-                        box: boxPixelsToPercent(
-                            boundsToBoxInPixels(activeDocument, true),
-                            boundsToBoxInPixels(activeDocument, true)
-                        ),
-                    };
-                } catch (error) {
-                    modalError = error;
-                }
+                returnValue = {
+                    layerID: boxLayer.id,
+                    box: boxPixelsToPercent(
+                        boundsToBoxInPixels(activeDocument, true),
+                        boundsToBoxInPixels(activeDocument, true)
+                    ),
+                };
+            } catch (error) {
+                modalError = error;
+            }
 
-                await executionContext.hostControl.resumeHistory(suspensionID);
-            },
-            { interactive: true }
-        );
+            await executionContext.hostControl.resumeHistory(suspensionID);
+        },
+        { interactive: true }
+    );
 
-        if (modalError) {
-            throw modalError;
-        }
-
-        return returnValue;
-    } catch (err) {
-        console.log(err);
-        throw err;
+    if (modalError) {
+        throw modalError;
     }
+
+    return returnValue;
 }
 
 export const applyTransformation = async ({
@@ -514,31 +552,15 @@ export const applyTransformation = async ({
     parameters,
     token,
 }) => {
-    const config = new PixelbinConfig({
-        domain: constants.urls.apiDomain,
-        apiSecret: token,
-    });
-
-    const pixelbin = new PixelbinClient(config);
-
-    const { activeLayers } = photoshop.app.activeDocument;
-
-    if (!activeLayers.length) {
-        throw Error("No layer selected");
-    }
-
-    if (activeLayers.length > 1) {
-        throw Error("Only one layer can be selected for transformation");
-    }
-
-    const originalImageLayer = activeLayers.at(0);
-
     // errors are not properly thrown from inside executeAsModal function
     // ref: https://forums.creativeclouddeveloper.com/t/bug-errors-thrown-inside-of-executeasmodal-are-being-converted-to-strings/5431
     let modalError = null;
 
     await photoshop.core.executeAsModal(
         async (executionContext) => {
+            const originalImageLayer =
+                photoshop.app.activeDocument.activeLayers.at(0);
+
             const suspensionID =
                 await executionContext.hostControl.suspendHistory({
                     documentID: originalImageLayer._docId,
@@ -574,6 +596,13 @@ export const applyTransformation = async ({
                 await uploadImageFile.write(imageBuffer, {
                     format: uxp.storage.formats.binary,
                 });
+
+                const config = new PixelbinConfig({
+                    domain: constants.urls.apiDomain,
+                    apiSecret: token,
+                });
+
+                const pixelbin = new PixelbinClient(config);
 
                 const { presignedUrl } =
                     await pixelbin.assets.createSignedUrlV2({

@@ -83,11 +83,25 @@ function Checkbox({ value, param, handleChange, handleResetClick }) {
     );
 }
 
-function Text({ value, param, handleChange, handleResetClick, handleDrawClick, drawButtonDisabled }) {
+function Text({
+    value,
+    param,
+    handleChange,
+    handleResetClick,
+    handleDrawClick,
+    drawButtonDisabled,
+    handleLabelClick,
+    disabled,
+}) {
     return (
-        <WC onChange={(e) => handleChange(e.target.value)}>
+        <WC onInput={(e) => handleChange(e.target.value)}>
             <div style={styles.paramSection}>
-                <sp-label for={param.identifier} size="m" style={styles.label}>
+                <sp-label
+                    for={param.identifier}
+                    size="m"
+                    style={styles.label}
+                    onClick={handleLabelClick}
+                >
                     {param.title}
                 </sp-label>
                 <sp-action-button
@@ -106,6 +120,7 @@ function Text({ value, param, handleChange, handleResetClick, handleDrawClick, d
                     label={param.title}
                     style={styles.fullWidth}
                     value={value}
+                    disabled={disabled}
                 ></sp-textfield>
                 <sp-action-button
                     variant="secondary"
@@ -126,7 +141,9 @@ export default function InputField({
     handleChange,
     handleResetClick,
     handleDrawClick,
+    handleLabelClick,
     drawButtonDisabled,
+    disabled,
 }) {
     let Field;
 
@@ -149,7 +166,9 @@ export default function InputField({
             handleChange={(e) => handleChange(param.identifier, e)}
             handleResetClick={() => handleResetClick(param.identifier)}
             handleDrawClick={() => handleDrawClick(param.identifier)}
+            handleLabelClick={() => handleLabelClick(param.identifier)}
             drawButtonDisabled={drawButtonDisabled}
+            disabled={disabled}
         />
     );
 }

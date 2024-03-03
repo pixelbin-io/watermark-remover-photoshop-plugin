@@ -1,18 +1,19 @@
-import React, { useEffect, useState } from "react";
+import React, { useCallback, useEffect, useState } from "react";
 import photoshop from "photoshop";
 
 import { HelpIcon, RefreshIcon } from "./Icons";
 import {
     getUsage,
-    handle,
     applyTransformation,
     drawBoxLayer,
-    getActiveLayer,
     createBoxLayersGroup,
-    getActiveDocument,
+    getActiveDoc,
     boxPixelsToPercent,
     boundsToBoxInPixels,
     convertBoxesForSelectedLayer,
+    selectLayerById,
+    deleteLayerById,
+    getLayer,
 } from "../utils";
 import { CommandController } from "../controllers/CommandController";
 import { ErrorAlertDialog } from "./ErrorAlertDialog";
@@ -120,7 +121,7 @@ const advancedParams = [
         tooltip:
             "(x-axis_y-axis_width_height) if not applying use: 0_0_0_0 & on full image use: 0_0_100_100",
         type: "string",
-        default: "0_0_100_100",
+        default: "",
         maxLength: 255,
         identifier: "box1",
         title: "Box 1",
@@ -130,7 +131,7 @@ const advancedParams = [
         tooltip:
             "(x-axis_y-axis_width_height) if not applying use: 0_0_0_0 & on full image use: 0_0_100_100",
         type: "string",
-        default: "0_0_0_0",
+        default: "",
         maxLength: 255,
         identifier: "box2",
         title: "Box 2",
@@ -140,7 +141,7 @@ const advancedParams = [
         tooltip:
             "(x-axis_y-axis_width_height) if not applying use: 0_0_0_0 & on full image use: 0_0_100_100",
         type: "string",
-        default: "0_0_0_0",
+        default: "",
         maxLength: 255,
         identifier: "box3",
         title: "Box 3",
@@ -150,7 +151,7 @@ const advancedParams = [
         tooltip:
             "(x-axis_y-axis_width_height) if not applying use: 0_0_0_0 & on full image use: 0_0_100_100",
         type: "string",
-        default: "0_0_0_0",
+        default: "",
         maxLength: 255,
         identifier: "box4",
         title: "Box 4",
@@ -160,14 +161,12 @@ const advancedParams = [
         tooltip:
             "(x-axis_y-axis_width_height) if not applying use: 0_0_0_0 & on full image use: 0_0_100_100",
         type: "string",
-        default: "0_0_0_0",
+        default: "",
         maxLength: 255,
         identifier: "box5",
         title: "Box 5",
     },
 ];
-
-const boxIdentifiers = ["box1", "box2", "box3", "box4", "box5"];
 
 const defaultParamValues = {};
 
@@ -175,11 +174,17 @@ for (const param of [...params, ...advancedParams]) {
     defaultParamValues[param.identifier] = param.default;
 }
 
+const stringifyBox = (box) => {
+    // left_top_width_height
+    return `${box.left}_${box.top}_${box.width}_${box.height}`;
+};
+
 export const Home = ({
     appOrgDetails,
     token,
     filters = defaultParamValues,
     setFilters,
+    biref,
 }) => {
     const [formValues, setFormValues] = useState(filters);
     const [loading, setLoading] = useState(false);
@@ -187,87 +192,170 @@ export const Home = ({
         credits: { used: 0 },
         total: { credits: 0 },
     });
-    const [boxLayersIds, setBoxLayersIds] = useState({});
-    const [boxLayersGroupId, setBoxLayersGroupId] = useState(null);
+    /**
+     * {
+     *      [docId_1]: {
+     *          groupId: "",
+     *          boxIds: {
+     *              box1: "",
+     *              box2: "",
+     *              box3: "",
+     *              box4: "",
+     *              box5: "",
+     *          }
+     *      }
+     *      ...
+     * }
+     */
+    const [docsBoxIds, setDocsBoxIds] = useState({});
 
-    const updateUsage = () => getUsage(token).then(setUsage);
+    const updateUsage = useCallback(
+        () => getUsage(token).then(setUsage),
+        [token]
+    );
 
     useEffect(() => {
         updateUsage();
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, []);
+    }, [updateUsage]);
+
+    const removeBoxLayers = useCallback(async () => {
+        for (const [docId, docValue] of Object.entries(docsBoxIds)) {
+            Object.values(docValue.boxIds).forEach(
+                async (boxId) => await deleteLayerById(boxId, docId)
+            );
+
+            await deleteLayerById(docValue.groupId, docId);
+        }
+    }, [docsBoxIds]);
+
+    useEffect(() => {
+        biref.removeBoxLayers = removeBoxLayers;
+    }, [biref, removeBoxLayers]);
+
+    const getOrCreateDocBoxIds = () => {
+        const activeDoc = getActiveDoc();
+
+        let docBoxIds = docsBoxIds[activeDoc.id];
+
+        if (!docBoxIds) {
+            docBoxIds = { groupId: null, boxIds: {} };
+
+            setDocsBoxIds((docsBoxIds) => ({
+                ...docsBoxIds,
+                [activeDoc.id]: docBoxIds,
+            }));
+        }
+
+        return docBoxIds;
+    };
+
+    const layerExists = (lyrId, docId) => {
+        try {
+            // .visible throws error if layer is not found
+            getLayer(lyrId, docId).visible;
+            return true;
+        } catch (err) {
+            return false;
+        }
+    };
+
+    const getLayerBox = (lyrId, docId) => {
+        const lyr = getLayer(lyrId, docId);
+
+        const newBox = boxPixelsToPercent(
+            boundsToBoxInPixels(lyr.boundsNoEffects),
+            boundsToBoxInPixels(getActiveDoc(), true)
+        );
+
+        return stringifyBox(newBox);
+    };
 
     useEffect(() => {
         const listener = () => {
-            const activeLayer = getActiveLayer();
+            const docBoxes = getOrCreateDocBoxIds();
 
-            if (!activeLayer) return;
+            const paramsFormValues = {};
 
-            const isBoxLayer = Object.entries(boxLayersIds).find(
-                ([, layerID]) => layerID === activeLayer.id
-            );
-
-            if (isBoxLayer) {
-                const newBox = boxPixelsToPercent(
-                    boundsToBoxInPixels(activeLayer.boundsNoEffects),
-                    boundsToBoxInPixels(getActiveDocument(), true)
-                );
-
-                setFormValues((formValues) => ({
-                    ...formValues,
-                    [isBoxLayer[0]]: stringifyBox(newBox),
-                }));
+            for (const { identifier } of params) {
+                params[identifier] = filters[identifier];
             }
+
+            const advancedParamsFormValues = {};
+            const activeDoc = getActiveDoc();
+
+            for (let [identifier, lyrId] of Object.entries(docBoxes.boxIds)) {
+                if (layerExists(lyrId, activeDoc.id)) {
+                    advancedParamsFormValues[identifier] = getLayerBox(
+                        lyrId,
+                        activeDoc.id
+                    );
+                }
+            }
+
+            setFormValues({
+                ...paramsFormValues,
+                ...advancedParamsFormValues,
+            });
         };
 
         photoshop.action.addNotificationListener(
-            [{ event: "transform" }, { event: "move" }],
+            ["layersFiltered", "historyStateChanged"],
             listener
         );
 
-        return () => {
+        return () =>
             photoshop.action.removeNotificationListener(
-                [{ event: "transform" }, { event: "move" }],
+                ["layersFiltered", "historyStateChanged"],
                 listener
             );
-        };
-    }, [boxLayersIds]);
+    }, [docsBoxIds]);
 
     const handleApply = async (e) => {
         e.preventDefault();
 
         setLoading(true);
 
-        const convertedBoxes = {};
+        try {
+            const { activeLayers } = photoshop.app.activeDocument;
 
-        for (const [identifier, boxLayerId] of Object.entries(boxLayersIds)) {
-            convertedBoxes[identifier] = stringifyBox(
-                await convertBoxesForSelectedLayer(boxLayerId)
-            );
-        }
+            if (!activeLayers.length) {
+                throw Error("No layer selected");
+            }
 
-        const [, error] = await handle(
-            applyTransformation({
+            if (activeLayers.length > 1) {
+                throw Error(
+                    "Only one layer can be selected for transformation"
+                );
+            }
+
+            const convertedBoxes = {};
+            const activeDoc = getActiveDoc();
+
+            for (const [identifier, boxLayerId] of Object.entries(
+                docsBoxIds[activeDoc.id].boxIds
+            )) {
+                convertedBoxes[identifier] = stringifyBox(
+                    await convertBoxesForSelectedLayer(boxLayerId)
+                );
+            }
+
+            await applyTransformation({
                 appOrgDetails,
                 parameters: { ...formValues, ...convertedBoxes },
                 token,
-            })
-        );
+            });
 
-        updateUsage();
+            updateUsage();
 
-        // only save simple params values
-        const savedFilters = {};
+            // only save simple params values
+            const savedFilters = {};
 
-        for (const param of params) {
-            savedFilters[param.identifier] = formValues[param.identifier];
-        }
+            for (const param of params) {
+                savedFilters[param.identifier] = formValues[param.identifier];
+            }
 
-        setFilters(savedFilters);
-
-        setLoading(false);
-
-        if (error) {
+            setFilters(savedFilters);
+        } catch (error) {
             const errorAlertDialogController = new CommandController(
                 ({ dialog }) => (
                     <ErrorAlertDialog
@@ -279,14 +367,37 @@ export const Home = ({
             );
 
             await errorAlertDialogController.run();
+        } finally {
+            setLoading(false);
         }
     };
 
-    const handleChange = (key, value) => {
-        setFormValues((formValues) => ({ ...formValues, [key]: value }));
-    };
+    const handleResetClick = async (key) => {
+        const isAdvancedIdentifier = advancedParams.find(
+            (param) => param.identifier === key
+        );
 
-    const handleResetClick = (key) => {
+        if (isAdvancedIdentifier) {
+            const activeDoc = getActiveDoc();
+            const docBoxIds = docsBoxIds[activeDoc.id];
+
+            if (docBoxIds) {
+                const [identifier, lyrId] = Object.entries(
+                    docBoxIds.boxIds
+                ).find(([identifier]) => identifier === key);
+
+                
+                if (layerExists(lyrId, activeDoc.id)) {
+                    await deleteLayerById(lyrId, activeDoc.id);
+
+                    const newDocsBoxIds = JSON.parse(JSON.stringify(docsBoxIds));
+                    delete newDocsBoxIds[activeDoc.id].boxIds[identifier];
+
+                    setDocsBoxIds(newDocsBoxIds);
+                }
+            }
+        }
+
         setFormValues((formValues) => ({
             ...formValues,
             [key]: filters[key],
@@ -305,25 +416,37 @@ export const Home = ({
         );
     }
 
-    const stringifyBox = (box) => {
-        // left_top_width_height
-        return `${box.left}_${box.top}_${box.width}_${box.height}`;
-    };
-
     const handleDrawClick = async (identifier) => {
-        let groupId = boxLayersGroupId;
+        const activeDoc = getActiveDoc();
+
+        const docBoxIds = getOrCreateDocBoxIds();
+
+        let { groupId } = docBoxIds;
 
         if (!groupId) {
             groupId = await createBoxLayersGroup();
-            setBoxLayersGroupId(groupId);
+
+            setDocsBoxIds((docsBoxIds) => ({
+                ...docsBoxIds,
+                [activeDoc.id]: {
+                    ...docsBoxIds[activeDoc.id],
+                    groupId,
+                },
+            }));
         }
 
-        if (!boxLayersIds[identifier]) {
+        if (!docBoxIds.boxIds[identifier]) {
             const box = await drawBoxLayer(identifier, groupId);
 
-            setBoxLayersIds((boxesToLayers) => ({
-                ...boxesToLayers,
-                [identifier]: box.layerID,
+            setDocsBoxIds((docsBoxIds) => ({
+                ...docsBoxIds,
+                [activeDoc.id]: {
+                    ...docsBoxIds[activeDoc.id],
+                    boxIds: {
+                        ...docsBoxIds[activeDoc.id].boxIds,
+                        [identifier]: box.layerID,
+                    },
+                },
             }));
 
             setFormValues((formValues) => ({
@@ -331,6 +454,17 @@ export const Home = ({
                 [identifier]: stringifyBox(box.box),
             }));
         }
+    };
+
+    const handleLabelClick = async (identifier) => {
+        const activeDoc = getActiveDoc();
+        const boxLayerId = docsBoxIds[activeDoc.id].boxIds[identifier];
+
+        await selectLayerById(boxLayerId);
+    };
+
+    const handleChange = async (key, value) => {
+        setFormValues({ ...formValues, [key]: value });
     };
 
     return (
@@ -367,19 +501,31 @@ export const Home = ({
                     ))}
 
                     <AccordionItem>
-                        {advancedParams.map((param) => (
-                            <InputField
-                                key={param.identifier}
-                                value={formValues[param.identifier]}
-                                param={param}
-                                handleChange={handleChange}
-                                handleResetClick={handleResetClick}
-                                handleDrawClick={handleDrawClick}
-                                drawButtonDisabled={
-                                    boxLayersIds[param.identifier]
-                                }
-                            />
-                        ))}
+                        {advancedParams.map((param) => {
+                            const doc = getActiveDoc();
+
+                            const layerIdExists =
+                                docsBoxIds[doc.id]?.boxIds[param.identifier];
+
+                            // layer exists in photoshop because 'formValues' is synced with layers
+                            const value = formValues[param.identifier];
+
+                            const boxDrawn = layerIdExists && value;
+
+                            return (
+                                <InputField
+                                    key={param.identifier}
+                                    value={formValues[param.identifier]}
+                                    param={param}
+                                    handleChange={handleChange}
+                                    handleResetClick={handleResetClick}
+                                    handleDrawClick={handleDrawClick}
+                                    handleLabelClick={handleLabelClick}
+                                    drawButtonDisabled={boxDrawn}
+                                    disabled={true}
+                                />
+                            );
+                        })}
                     </AccordionItem>
                 </div>
 

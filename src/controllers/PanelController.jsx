@@ -33,6 +33,7 @@ export class PanelController {
         domNode.style.overflow = "auto";
 
         const root = createRoot(domNode);
+        this.biref = {};
 
         root.render(this[_Component]({ panel: { ...this, id: this[_id] } }));
 
@@ -61,6 +62,6 @@ export class PanelController {
             (menuItem) => menuItem.id === id
         );
 
-        menuItem?.onInvoke?.();
+        menuItem?.onInvoke?.(this);
     }
 }

@@ -21,7 +21,7 @@ const appPanelController = new PanelController(
                 label: "Logout",
                 enabled: isUserLoggedIn,
                 checked: false,
-                onInvoke: async () => {
+                onInvoke: async (panel) => {
                     const confirmationDialogController = new CommandController(
                         ({ dialog }) => <ConfirmationDialog dialog={dialog} />
                     );
@@ -29,6 +29,7 @@ const appPanelController = new PanelController(
                     const logout = await confirmationDialogController.run();
 
                     if (logout === "YES") {
+                        await panel.biref.removeBoxLayers();
                         localStorage.clear();
                         location.reload();
                     }
