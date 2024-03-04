@@ -386,11 +386,12 @@ export const Home = ({
                     docBoxIds.boxIds
                 ).find(([identifier]) => identifier === key);
 
-                
                 if (layerExists(lyrId, activeDoc.id)) {
                     await deleteLayerById(lyrId, activeDoc.id);
 
-                    const newDocsBoxIds = JSON.parse(JSON.stringify(docsBoxIds));
+                    const newDocsBoxIds = JSON.parse(
+                        JSON.stringify(docsBoxIds)
+                    );
                     delete newDocsBoxIds[activeDoc.id].boxIds[identifier];
 
                     setDocsBoxIds(newDocsBoxIds);
@@ -404,7 +405,26 @@ export const Home = ({
         }));
     };
 
-    const handleResetAll = () => {
+    const handleResetAll = async () => {
+        const activeDoc = getActiveDoc();
+        const docBoxIds = docsBoxIds[activeDoc.id];
+
+        if (docBoxIds) {
+            for (const [, lyrId] of Object.entries(docBoxIds.boxIds)) {
+                if (layerExists(lyrId, activeDoc.id)) {
+                    await deleteLayerById(lyrId, activeDoc.id);
+                }
+            }
+
+            if (layerExists(docBoxIds.groupId, activeDoc.id)) {
+                await deleteLayerById(docBoxIds.groupId, activeDoc.id);
+            }
+
+            const newDocsBoxIds = JSON.parse(JSON.stringify(docsBoxIds));
+            delete newDocsBoxIds[activeDoc.id];
+            setDocsBoxIds(newDocsBoxIds);
+        }
+
         setFormValues(filters);
     };
 
